@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <title>豆瓣电影影评</title>
+    <script type='text/javascript'>
+    var results = {{ results|safe }};
+    </script>
+</head>
+<body>
+<div id="app" style="margin: 20px 20px">
+    <el-card class="box-card">
+      <div slot="header" class="clearfix">
+        <el-input prefix-icon="el-icon-search" v-model="search" placeholder="输入关键字筛选短评" clearable style="width:30%"/>
+      </div>
+        <el-table :data="results.filter(data => !search || data['comment_info'].toLowerCase().includes(search.toLowerCase()))" max-height="600" style="width: 100%" border fit highlight-current-row>
+            <el-table-column type="index" label="Index" width="100" align="center">
+            </el-table-column>
+            <el-table-column prop="movie_name" label="Movie" width="180" align="center" sortable>
+            </el-table-column>
+            <el-table-column prop="comment_info" label="Comment">
+            </el-table-column>
+            <el-table-column prop="rating_star" label="RatingStar" width="120" align="center" sortable>
+            </el-table-column>
+            <el-table-column prop="comment_time" label="PubTime" align="center" width="220" sortable>
+            </el-table-column>
+        </el-table>
+    </el-card>
+</div>
+
+<script>
+    var app = new Vue({
+        delimiters: ['[[', ']]'],
+        el: '#app',
+        data: {
+            search: '',
+            results: results
+        },
+    })
+</script>
+</body>
+</html>
