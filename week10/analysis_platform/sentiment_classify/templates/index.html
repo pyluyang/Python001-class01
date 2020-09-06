@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/dist/echarts.js"></script>
+    <title>舆情分析平台</title>
+    <script type='text/javascript'>
+        var results = {{ results|safe }};
+        var keys = {{ keys|safe }};
+    </script>
+</head>
+<body>
+<div id="app" style="margin: 20px 20px">
+    <el-card class="box-card">
+        <div slot="header" class="clearfix">
+            <el-input prefix-icon="el-icon-search"
+                      v-model="search"
+                      placeholder="输入评论关键字筛选评论内容" clearable
+                      style="width:30%">
+            </el-input>
+        </div>
+        <div class="filter-container">
+            <div style="margin-bottom: 20px;">
+                <el-checkbox-group v-model="formChoice">
+                    <el-checkbox v-for="(v, k) in keys" :key="v.id" :label="k">
+                        [[ v ]]
+                    </el-checkbox>
+                </el-checkbox-group>
+            </div>
+            <el-table
+                    :data="results.filter(
+                    data => !search || (data['comment_info'].toLowerCase().includes(search.toLowerCase())))"
+                    max-height="600" style="width: 100%" border fit highlight-current-row>
+                <el-table-column type="index" label="Index" width="70" align="center">
+                </el-table-column>
+                <el-table-column v-for="key in formChoice" :key="key" :label="keys[key]">
+                    <template slot-scope="scope">
+                        [[ key == 'sentiments'? parseFloat(scope.row[key].toFixed(6)): scope.row[key] ]]
+                    </template>
+                </el-table-column>
+                <el-table-column label="爬取时间"
+                                 :filters="crawlTimeFilterData"
+                                 :filter-method="(value, row, column) => row['crawl_time'].indexOf(value) !== -1 "
+                >
+                    <template slot-scope="scope">
+                        [[ scope.row['crawl_time'] ]]
+                    </template>
+                </el-table-column>
+                <el-table-column label="发布时间"
+                                 :filters="pubTimeFilterData"
+                                 :filter-method="(value, row, column) => row['pub_time'].indexOf(value) !== -1 "
+                >
+                    <template slot-scope="scope">
+                        [[ scope.row['pub_time'] ]]
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+    </el-card>
+    <div style="margin-top:5px;">
+        <el-card class="box-card">
+            <div id="charts" style="height:700px;padding-right: 0"/>
+        </el-card>
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        delimiters: ['[[', ']]'],
+        el: '#app',
+        data: {
+            formChoice: ['goods_type', 'position', 'comment_info', 'mall', 'sentiments'],
+            search: '',
+            keys: keys,
+            results: results,
+            crawlTimeFilterData: [],
+            pubTimeFilterData: [],
+        },
+        mounted() {
+            this.drawChart()
+            this.onCrawlTimeFilterData()
+            this.onPubTimeFilterData()
+        },
+        methods: {
+            onCrawlTimeFilterData() {
+                this.onTimeFilter('crawl_time', this.crawlTimeFilterData)
+            },
+            onPubTimeFilterData() {
+                this.onTimeFilter('pub_time', this.pubTimeFilterData)
+            },
+            onTimeFilter(key, tar) {
+                let temp = new Set();
+                this.results.forEach(item => {
+                    temp.add(item[key].slice(0, 10))
+                })
+                for (let i of temp) {
+                    tar.push({text: i, value: i})
+                }
+            },
+            drawChart() {
+                let myChart = echarts.init(document.getElementById('charts'));
+                let data = new Map();
+                let goodType, sentiments, index, xAxis, positiveData = [], negativeData = [];
+                this.results.forEach(item => {
+                    goodType = item['goods_type'];
+                    sentiments = item['sentiments'];
+                    index = sentiments >= 0.5 ? 0 : 1;
+                    if (!data.has(goodType))
+                        data.set(goodType, [0, 0])
+                    data.get(goodType)[index] += 1
+                })
+                xAxis = Array.from(data.keys())
+                for (let [_, v] of data) {
+                    positiveData.push(v[0])
+                    negativeData.push(v[1])
+                }
+                let option = {
+                    xAxis: {
+                        type: 'category',
+                        data: xAxis,
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {            // 坐标轴指示器，坐标轴触发有效
+                            type: 'shadow'        // 默认为直线，可选为：'line' | 'shadow'
+                        }
+                    },
+                    legend: {
+                        data: xAxis,
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    series: [
+                        {
+                            name: '正向评价',
+                            type: 'bar',
+                            stack: '情感分析',
+                            data: positiveData,
+                        },
+                        {
+                            name: '负向评价',
+                            type: 'bar',
+                            stack: '情感分析',
+                            data: negativeData
+                        },
+                    ]
+                };
+                myChart.setOption(option)
+                window.onresize = function () {
+                    myChart.resize({
+                        width: 'auto',
+                    })
+                }
+            },
+        }
+    })
+</script>
+</body>
+</html>
